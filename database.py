@@ -158,13 +158,36 @@ def record_yes(link_id: str, crush_name: str, user_id: int) -> dict:
 
 # ── Stats ──────────────────────────────────────────────────────────────────────
 
-def get_stats() -> dict:
+def _count_collection(collection_name: str) -> int:
+    """Count documents using Firestore aggregation (COUNT) — much faster than streaming."""
     db = get_db()
-    users_count = len(list(db.collection("users").stream()))
-    all_links   = [d.to_dict() for d in db.collection("links").stream()]
-    links_count = sum(1 for l in all_links if not l.get("is_deleted"))
-    views_count = len(list(db.collection("views").stream()))
-    yes_count   = len(list(db.collection("yes_clicks").stream()))
+    try:
+        # firebase-admin >= 6.2 supports count aggregation
+        from google.cloud.firestore_v1.aggregation import CountAggregation
+        agg_query = db.collection(collection_name).count()
+        results = agg_query.get()
+        # results is a list of AggregationResult
+        for r in results:
+            for agg_result in r:
+                return agg_result.value
+        return 0
+    except (ImportError, AttributeError, Exception):
+        # Fallback: use select() with empty fields to minimize data transfer
+        docs = db.collection(collection_name).select([]).stream()
+        return sum(1 for _ in docs)
+
+
+def get_stats() -> dict:
+    """Get bot-wide statistics using efficient counting."""
+    db = get_db()
+    users_count = _count_collection("users")
+    yes_count = _count_collection("yes_clicks")
+    views_count = _count_collection("views")
+
+    # For links, we need to filter is_deleted — use select() for minimal data
+    all_links_docs = db.collection("links").select(["is_deleted"]).stream()
+    links_count = sum(1 for d in all_links_docs if not (d.to_dict() or {}).get("is_deleted"))
+
     return {
         "users":      users_count,
         "links":      links_count,

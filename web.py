@@ -19,6 +19,11 @@ TEMPLATES_DIR = BASE_DIR / "templates"
 STATIC_DIR    = BASE_DIR / "static"
 GENERATED_DIR = BASE_DIR / "generated"
 
+# Ensure directories exist at import time
+TEMPLATES_DIR.mkdir(exist_ok=True)
+STATIC_DIR.mkdir(exist_ok=True)
+GENERATED_DIR.mkdir(exist_ok=True)
+
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
