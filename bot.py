@@ -49,6 +49,14 @@ def cancel_reply_kb() -> ReplyKeyboardMarkup:
     )
 
 
+def links_selection_kb(links: list, prefix: str) -> ReplyKeyboardMarkup:
+    """Build a reply keyboard listing user's pages by number for selection."""
+    rows = []
+    for i, link in enumerate(links, 1):
+        rows.append([KeyboardButton(text=f"{i}. {link['crush_name']} ({link['link_id'][:6]}…)")])
+    rows.append([KeyboardButton(text="❌ বাতিল করো")])
+    return ReplyKeyboardMarkup(keyboard=rows, resize_keyboard=True)
+
 
 # ══════════════════════════════════════════════════════════════
 #  FSM STATES
@@ -58,6 +66,10 @@ class CreateLink(StatesGroup):
     crush_name   = State()
     creator_name = State()
     message      = State()
+
+class SelectLink(StatesGroup):
+    """Generic state for selecting a link before customizing."""
+    waiting = State()
 
 class SetEmoji(StatesGroup):
     waiting = State()
@@ -70,6 +82,10 @@ class SetBg(StatesGroup):
 
 class SetMessage(StatesGroup):
     waiting = State()
+
+class DeleteLink(StatesGroup):
+    waiting = State()
+    confirm = State()
 
 class AdminBroadcast(StatesGroup):
     message = State()
@@ -84,6 +100,30 @@ async def check_banned(message: Message) -> bool:
         await message.answer("🚫 আপনাকে এই bot থেকে ban করা হয়েছে।")
         return True
     return False
+
+
+def _find_link_from_selection(text: str, links: list) -> Optional[dict]:
+    """Parse the user's reply keyboard selection and return matching link."""
+    if not text:
+        return None
+    # Try matching "N. crush_name (id…)" pattern
+    for i, link in enumerate(links, 1):
+        expected = f"{i}. {link['crush_name']} ({link['link_id'][:6]}…)"
+        if text.strip() == expected:
+            return link
+    # Fallback: try matching by number alone
+    try:
+        idx = int(text.split(".")[0].strip()) - 1
+        if 0 <= idx < len(links):
+            return links[idx]
+    except (ValueError, IndexError):
+        pass
+    return None
+
+
+def _verify_ownership(link: dict, user_id: int) -> bool:
+    """Verify that the link belongs to the given user."""
+    return link.get("user_id") == user_id
 
 
 HELP_TEXT = (
@@ -232,14 +272,6 @@ async def create_message_step(message: Message, state: FSMContext):
         f"📋 Page ID: <code>{link_id}</code>",
         reply_markup=main_reply_kb(message.from_user.id),
     )
-    # Extra inline button to open page directly
-    await message.answer(
-        "👇 Page খুলে দেখো:",
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="🔗 Page Open করো", url=link_url)],
-            [InlineKeyboardButton(text="💝 আরেকটা বানাও", callback_data="create_inline")],
-        ]),
-    )
 
 
 # ══════════════════════════════════════════════════════════════
@@ -300,29 +332,105 @@ async def btn_stats(message: Message):
 
 
 # ══════════════════════════════════════════════════════════════
-#  SET EMOJI
+#  SET EMOJI (Reply Keyboard selection)
 # ══════════════════════════════════════════════════════════════
 
 @router.message(Command("setemoji"))
-async def cmd_setemoji(message: Message):
+async def cmd_setemoji(message: Message, state: FSMContext):
     if await check_banned(message): return
     links = db.get_user_links(message.from_user.id)
     if not links:
-        await message.answer("⚠️ আগে /create দিয়ে page বানাও।"); return
-    buttons = [
-        [InlineKeyboardButton(text=f"💕 {l['crush_name']} ({l['link_id']})", callback_data=f"setemoji:{l['link_id']}")]
-        for l in links
-    ]
-    await message.answer("🎭 কোন page-এর emoji বদলাবে?", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
+        await message.answer("⚠️ আগে /create দিয়ে page বানাও।", reply_markup=main_reply_kb(message.from_user.id)); return
+    await state.update_data(action="setemoji", links_cache=[{"link_id": l["link_id"], "crush_name": l["crush_name"], "user_id": l["user_id"]} for l in links])
+    await state.set_state(SelectLink.waiting)
+    await message.answer(
+        "🎭 কোন page-এর emoji বদলাবে?\nনিচে থেকে বেছে নাও 👇",
+        reply_markup=links_selection_kb(links, "setemoji"),
+    )
 
-@router.callback_query(F.data.startswith("setemoji:"))
-async def setemoji_select(callback: CallbackQuery, state: FSMContext):
-    link_id = callback.data.split(":", 1)[1]
+@router.message(Command("setmusic"))
+async def cmd_setmusic(message: Message, state: FSMContext):
+    if await check_banned(message): return
+    links = db.get_user_links(message.from_user.id)
+    if not links:
+        await message.answer("⚠️ আগে /create দিয়ে page বানাও।", reply_markup=main_reply_kb(message.from_user.id)); return
+    await state.update_data(action="setmusic", links_cache=[{"link_id": l["link_id"], "crush_name": l["crush_name"], "user_id": l["user_id"]} for l in links])
+    await state.set_state(SelectLink.waiting)
+    await message.answer(
+        "🎵 কোন page-এ music দেবে?\nনিচে থেকে বেছে নাও 👇",
+        reply_markup=links_selection_kb(links, "setmusic"),
+    )
+
+@router.message(Command("setbg"))
+async def cmd_setbg(message: Message, state: FSMContext):
+    if await check_banned(message): return
+    links = db.get_user_links(message.from_user.id)
+    if not links:
+        await message.answer("⚠️ আগে /create দিয়ে page বানাও।", reply_markup=main_reply_kb(message.from_user.id)); return
+    await state.update_data(action="setbg", links_cache=[{"link_id": l["link_id"], "crush_name": l["crush_name"], "user_id": l["user_id"]} for l in links])
+    await state.set_state(SelectLink.waiting)
+    await message.answer(
+        "🖼 কোন page-এর background বদলাবে?\nনিচে থেকে বেছে নাও 👇",
+        reply_markup=links_selection_kb(links, "setbg"),
+    )
+
+@router.message(Command("setmessage"))
+async def cmd_setmessage(message: Message, state: FSMContext):
+    if await check_banned(message): return
+    links = db.get_user_links(message.from_user.id)
+    if not links:
+        await message.answer("⚠️ আগে /create দিয়ে page বানাও।", reply_markup=main_reply_kb(message.from_user.id)); return
+    await state.update_data(action="setmessage", links_cache=[{"link_id": l["link_id"], "crush_name": l["crush_name"], "user_id": l["user_id"]} for l in links])
+    await state.set_state(SelectLink.waiting)
+    await message.answer(
+        "💬 কোন page-এর message আপডেট করবে?\nনিচে থেকে বেছে নাও 👇",
+        reply_markup=links_selection_kb(links, "setmessage"),
+    )
+
+
+# ── Generic link selection handler ────────────────────────────
+
+@router.message(StateFilter(SelectLink.waiting))
+async def select_link_handler(message: Message, state: FSMContext):
+    text = (message.text or "").strip()
+    if text == "❌ বাতিল করো":
+        await _cancel(message, state); return
+
+    data = await state.get_data()
+    links = data.get("links_cache", [])
+    selected = _find_link_from_selection(text, links)
+
+    if not selected:
+        await message.answer("⚠️ সঠিক option বেছে নাও অথবা ❌ বাতিল করো।")
+        return
+
+    # Ownership validation
+    if not _verify_ownership(selected, message.from_user.id):
+        await state.clear()
+        await message.answer("🚫 এটা তোমার page না!", reply_markup=main_reply_kb(message.from_user.id))
+        return
+
+    action = data.get("action", "")
+    link_id = selected["link_id"]
     await state.update_data(link_id=link_id)
-    await state.set_state(SetEmoji.waiting)
-    await callback.message.edit_text("🎭 Emoji পাঠাও (যেমন: 💖 🌸 🦋 ✨):")
-    await callback.answer()
-    await callback.message.answer("👇 Emoji টাইপ করো:", reply_markup=cancel_reply_kb())
+
+    if action == "setemoji":
+        await state.set_state(SetEmoji.waiting)
+        await message.answer("🎭 Emoji পাঠাও (যেমন: 💖 🌸 🦋 ✨):", reply_markup=cancel_reply_kb())
+    elif action == "setmusic":
+        await state.set_state(SetMusic.waiting)
+        await message.answer("🎵 MP3 file-এর direct URL পাঠাও:", reply_markup=cancel_reply_kb())
+    elif action == "setbg":
+        await state.set_state(SetBg.waiting)
+        await message.answer("🖼 Image-এর direct URL পাঠাও:", reply_markup=cancel_reply_kb())
+    elif action == "setmessage":
+        await state.set_state(SetMessage.waiting)
+        await message.answer("💬 নতুন message লেখো:", reply_markup=cancel_reply_kb())
+    else:
+        await _cancel(message, state)
+
+
+# ── Save handlers ─────────────────────────────────────────────
 
 @router.message(StateFilter(SetEmoji.waiting))
 async def setemoji_save(message: Message, state: FSMContext):
@@ -335,31 +443,6 @@ async def setemoji_save(message: Message, state: FSMContext):
     await message.answer(f"✅ Emoji আপডেট হয়েছে: {text}", reply_markup=main_reply_kb(message.from_user.id))
 
 
-# ══════════════════════════════════════════════════════════════
-#  SET MUSIC
-# ══════════════════════════════════════════════════════════════
-
-@router.message(Command("setmusic"))
-async def cmd_setmusic(message: Message):
-    if await check_banned(message): return
-    links = db.get_user_links(message.from_user.id)
-    if not links:
-        await message.answer("⚠️ আগে /create দিয়ে page বানাও।"); return
-    buttons = [
-        [InlineKeyboardButton(text=f"🎵 {l['crush_name']} ({l['link_id']})", callback_data=f"setmusic:{l['link_id']}")]
-        for l in links
-    ]
-    await message.answer("🎵 কোন page-এ music দেবে?", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
-
-@router.callback_query(F.data.startswith("setmusic:"))
-async def setmusic_select(callback: CallbackQuery, state: FSMContext):
-    link_id = callback.data.split(":", 1)[1]
-    await state.update_data(link_id=link_id)
-    await state.set_state(SetMusic.waiting)
-    await callback.message.edit_text("🎵 MP3 file-এর direct URL পাঠাও:")
-    await callback.answer()
-    await callback.message.answer("👇 URL টাইপ করো:", reply_markup=cancel_reply_kb())
-
 @router.message(StateFilter(SetMusic.waiting))
 async def setmusic_save(message: Message, state: FSMContext):
     text = (message.text or "").strip()
@@ -371,31 +454,6 @@ async def setmusic_save(message: Message, state: FSMContext):
     await message.answer("✅ Background music আপডেট হয়েছে!", reply_markup=main_reply_kb(message.from_user.id))
 
 
-# ══════════════════════════════════════════════════════════════
-#  SET BG
-# ══════════════════════════════════════════════════════════════
-
-@router.message(Command("setbg"))
-async def cmd_setbg(message: Message):
-    if await check_banned(message): return
-    links = db.get_user_links(message.from_user.id)
-    if not links:
-        await message.answer("⚠️ আগে /create দিয়ে page বানাও।"); return
-    buttons = [
-        [InlineKeyboardButton(text=f"🖼 {l['crush_name']} ({l['link_id']})", callback_data=f"setbg:{l['link_id']}")]
-        for l in links
-    ]
-    await message.answer("🖼 কোন page-এর background বদলাবে?", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
-
-@router.callback_query(F.data.startswith("setbg:"))
-async def setbg_select(callback: CallbackQuery, state: FSMContext):
-    link_id = callback.data.split(":", 1)[1]
-    await state.update_data(link_id=link_id)
-    await state.set_state(SetBg.waiting)
-    await callback.message.edit_text("🖼 Image-এর direct URL পাঠাও:")
-    await callback.answer()
-    await callback.message.answer("👇 URL টাইপ করো:", reply_markup=cancel_reply_kb())
-
 @router.message(StateFilter(SetBg.waiting))
 async def setbg_save(message: Message, state: FSMContext):
     text = (message.text or "").strip()
@@ -406,31 +464,6 @@ async def setbg_save(message: Message, state: FSMContext):
     await state.clear()
     await message.answer("✅ Background image আপডেট হয়েছে!", reply_markup=main_reply_kb(message.from_user.id))
 
-
-# ══════════════════════════════════════════════════════════════
-#  SET MESSAGE
-# ══════════════════════════════════════════════════════════════
-
-@router.message(Command("setmessage"))
-async def cmd_setmessage(message: Message):
-    if await check_banned(message): return
-    links = db.get_user_links(message.from_user.id)
-    if not links:
-        await message.answer("⚠️ আগে /create দিয়ে page বানাও।"); return
-    buttons = [
-        [InlineKeyboardButton(text=f"💬 {l['crush_name']} ({l['link_id']})", callback_data=f"setmsg:{l['link_id']}")]
-        for l in links
-    ]
-    await message.answer("💬 কোন page-এর message আপডেট করবে?", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
-
-@router.callback_query(F.data.startswith("setmsg:"))
-async def setmsg_select(callback: CallbackQuery, state: FSMContext):
-    link_id = callback.data.split(":", 1)[1]
-    await state.update_data(link_id=link_id)
-    await state.set_state(SetMessage.waiting)
-    await callback.message.edit_text("💬 নতুন message লেখো:")
-    await callback.answer()
-    await callback.message.answer("👇 Message লেখো:", reply_markup=cancel_reply_kb())
 
 @router.message(StateFilter(SetMessage.waiting))
 async def setmsg_save(message: Message, state: FSMContext):
@@ -444,39 +477,73 @@ async def setmsg_save(message: Message, state: FSMContext):
 
 
 # ══════════════════════════════════════════════════════════════
-#  DELETE
+#  DELETE (Reply Keyboard)
 # ══════════════════════════════════════════════════════════════
 
 @router.message(Command("delete"))
-async def cmd_delete(message: Message):
+async def cmd_delete(message: Message, state: FSMContext):
     if await check_banned(message): return
     links = db.get_user_links(message.from_user.id)
     if not links:
-        await message.answer("⚠️ মুছার মতো কোনো page নেই।"); return
-    buttons = [
-        [InlineKeyboardButton(text=f"🗑 {l['crush_name']} ({l['link_id']})", callback_data=f"del:{l['link_id']}")]
-        for l in links
-    ]
-    await message.answer("🗑 কোন page মুছবে?", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
-
-@router.callback_query(F.data.startswith("del:"))
-async def delete_confirm(callback: CallbackQuery):
-    link_id = callback.data.split(":", 1)[1]
-    await callback.message.edit_text(
-        f"⚠️ Page <code>{link_id}</code> সত্যিই মুছে ফেলবে?",
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
-            InlineKeyboardButton(text="✅ হ্যাঁ, মুছে ফেলো", callback_data=f"delconfirm:{link_id}"),
-            InlineKeyboardButton(text="❌ না", callback_data="cancel"),
-        ]]),
+        await message.answer("⚠️ মুছার মতো কোনো page নেই।", reply_markup=main_reply_kb(message.from_user.id)); return
+    await state.update_data(action="delete", links_cache=[{"link_id": l["link_id"], "crush_name": l["crush_name"], "user_id": l["user_id"]} for l in links])
+    await state.set_state(DeleteLink.waiting)
+    await message.answer(
+        "🗑 কোন page মুছবে?\nনিচে থেকে বেছে নাও 👇",
+        reply_markup=links_selection_kb(links, "delete"),
     )
-    await callback.answer()
 
-@router.callback_query(F.data.startswith("delconfirm:"))
-async def delete_execute(callback: CallbackQuery):
-    link_id = callback.data.split(":", 1)[1]
-    db.delete_link(link_id)
-    await callback.message.edit_text(f"✅ Page <code>{link_id}</code> মুছে ফেলা হয়েছে।")
-    await callback.answer("✅ Deleted")
+
+@router.message(StateFilter(DeleteLink.waiting))
+async def delete_select(message: Message, state: FSMContext):
+    text = (message.text or "").strip()
+    if text == "❌ বাতিল করো":
+        await _cancel(message, state); return
+
+    data = await state.get_data()
+    links = data.get("links_cache", [])
+    selected = _find_link_from_selection(text, links)
+
+    if not selected:
+        await message.answer("⚠️ সঠিক option বেছে নাও অথবা ❌ বাতিল করো।")
+        return
+
+    # Ownership validation
+    if not _verify_ownership(selected, message.from_user.id):
+        await state.clear()
+        await message.answer("🚫 এটা তোমার page না!", reply_markup=main_reply_kb(message.from_user.id))
+        return
+
+    await state.update_data(link_id=selected["link_id"], crush_name=selected["crush_name"])
+    await state.set_state(DeleteLink.confirm)
+    confirm_kb = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="✅ হ্যাঁ, মুছে ফেলো")],
+            [KeyboardButton(text="❌ বাতিল করো")],
+        ],
+        resize_keyboard=True,
+    )
+    await message.answer(
+        f"⚠️ <b>{selected['crush_name']}</b> page সত্যিই মুছে ফেলবে?",
+        reply_markup=confirm_kb,
+    )
+
+
+@router.message(StateFilter(DeleteLink.confirm))
+async def delete_confirm(message: Message, state: FSMContext):
+    text = (message.text or "").strip()
+    if text == "❌ বাতিল করো":
+        await _cancel(message, state); return
+    if text == "✅ হ্যাঁ, মুছে ফেলো":
+        data = await state.get_data()
+        db.delete_link(data["link_id"])
+        await state.clear()
+        await message.answer(
+            f"✅ <b>{data.get('crush_name', '')}</b> page মুছে ফেলা হয়েছে।",
+            reply_markup=main_reply_kb(message.from_user.id),
+        )
+    else:
+        await message.answer("⚠️ '✅ হ্যাঁ, মুছে ফেলো' বা '❌ বাতিল করো' বেছে নাও।")
 
 
 # ══════════════════════════════════════════════════════════════
@@ -504,7 +571,6 @@ async def _show_admin_panel(message: Message):
         f"🔗 Links:       <b>{stats['links']}</b>\n"
         f"👁 Views:       <b>{stats['views']}</b>\n"
         f"❤️ Yes clicks: <b>{stats['yes_clicks']}</b>\n\n"
-        f"🌐 Web panel: {BASE_URL}/admin\n\n"
         "নিচের button দিয়ে manage করো 👇",
         reply_markup=admin_reply_kb(),
     )
@@ -684,25 +750,6 @@ async def cmd_cancel(message: Message, state: FSMContext):
 @router.message(F.text == "❌ বাতিল করো")
 async def btn_cancel(message: Message, state: FSMContext):
     await _cancel(message, state)
-
-@router.callback_query(F.data == "cancel")
-async def cb_cancel(callback: CallbackQuery, state: FSMContext):
-    await state.clear()
-    await callback.message.edit_text("❌ বাতিল হয়েছে।")
-    await callback.answer()
-    await callback.message.answer("🏠 Main Menu:", reply_markup=main_reply_kb(callback.from_user.id))
-
-
-# ── Inline "Create another" from result ──────────────────────
-
-@router.callback_query(F.data == "create_inline")
-async def cb_create_inline(callback: CallbackQuery, state: FSMContext):
-    await callback.answer()
-    await state.set_state(CreateLink.crush_name)
-    await callback.message.answer(
-        "💕 <b>Step 1 / 3</b>\n\nতোমার crush-এর নাম কী?",
-        reply_markup=cancel_reply_kb(),
-    )
 
 
 # ══════════════════════════════════════════════════════════════
