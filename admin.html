@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Panel — Crush Bot</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; background: #0f0f1a; color: #e0e0f0; min-height: 100vh; margin: 0; }
+    .admin-layout { display: flex; min-height: 100vh; }
+    .admin-sidebar { width: 220px; background: #16162a; padding: 24px 0; flex-shrink: 0; border-right: 1px solid #2a2a40; }
+    .admin-sidebar h2 { color: #e0607e; padding: 0 24px 20px; font-size: 1.1rem; border-bottom: 1px solid #2a2a40; margin: 0 0 16px; }
+    .sidebar-nav a { display: block; padding: 10px 24px; color: #aaa; text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+    .sidebar-nav a:hover, .sidebar-nav a.active { background: #1e1e35; color: #e0607e; border-left: 3px solid #e0607e; }
+    .admin-main { flex: 1; padding: 32px; overflow-y: auto; }
+    .admin-header { margin-bottom: 28px; }
+    .admin-header h1 { font-size: 1.5rem; color: #fff; margin: 0; }
+    .admin-header p { color: #888; margin: 4px 0 0; font-size: 0.85rem; }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 32px; }
+    .stat-card { background: #16162a; border: 1px solid #2a2a40; border-radius: 12px; padding: 20px; text-align: center; }
+    .stat-card .stat-num { font-size: 2rem; font-weight: 700; color: #e0607e; }
+    .stat-card .stat-label { color: #888; font-size: 0.8rem; margin-top: 4px; }
+    .section-card { background: #16162a; border: 1px solid #2a2a40; border-radius: 12px; padding: 24px; margin-bottom: 24px; }
+    .section-card h3 { color: #fff; margin: 0 0 16px; font-size: 1rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th { text-align: left; padding: 10px 12px; border-bottom: 1px solid #2a2a40; color: #888; font-weight: 500; }
+    td { padding: 10px 12px; border-bottom: 1px solid #1e1e30; color: #ccc; }
+    tr:hover td { background: #1a1a2e; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 0.75rem; }
+    .badge-red { background: #3a1a20; color: #e07070; }
+    .badge-green { background: #1a3a20; color: #70e070; }
+    .btn-sm { padding: 4px 10px; border-radius: 6px; border: none; cursor: pointer; font-size: 0.78rem; font-weight: 500; transition: opacity 0.2s; }
+    .btn-sm:hover { opacity: 0.8; }
+    .btn-danger { background: #3a1020; color: #e06070; }
+    .btn-success { background: #102a20; color: #60e090; }
+    .btn-warn { background: #3a2a10; color: #e0b060; }
+    .input-row { display: flex; gap: 10px; margin-bottom: 12px; }
+    .input-row input, .input-row textarea { flex: 1; background: #0f0f1a; border: 1px solid #2a2a40; border-radius: 8px; padding: 10px 14px; color: #e0e0f0; font-family: inherit; font-size: 0.9rem; resize: vertical; }
+    .input-row textarea { min-height: 80px; }
+    .btn-primary-admin { background: linear-gradient(135deg, #e0607e, #c040a0); color: white; border: none; border-radius: 8px; padding: 10px 20px; cursor: pointer; font-family: inherit; font-weight: 500; }
+    .btn-primary-admin:hover { opacity: 0.9; }
+    .section-tabs { display: flex; gap: 4px; margin-bottom: 16px; }
+    .tab-btn { background: #0f0f1a; border: 1px solid #2a2a40; color: #aaa; padding: 7px 16px; border-radius: 7px; cursor: pointer; font-size: 0.85rem; }
+    .tab-btn.active { background: #e0607e; color: white; border-color: #e0607e; }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+    #toast { position: fixed; bottom: 24px; right: 24px; background: #16162a; border: 1px solid #2a2a40; color: #e0e0f0; padding: 12px 20px; border-radius: 10px; font-size: 0.9rem; opacity: 0; transition: opacity 0.3s; z-index: 9999; }
+    #toast.show { opacity: 1; }
+    .login-overlay { position: fixed; inset: 0; background: #0f0f1a; display: flex; align-items: center; justify-content: center; z-index: 9000; }
+    .login-box { background: #16162a; border: 1px solid #2a2a40; border-radius: 16px; padding: 36px; width: 340px; text-align: center; }
+    .login-box h2 { color: #fff; margin: 0 0 8px; }
+    .login-box p { color: #888; font-size: 0.85rem; margin: 0 0 24px; }
+    .login-box input { width: 100%; box-sizing: border-box; background: #0f0f1a; border: 1px solid #2a2a40; border-radius: 8px; padding: 12px 14px; color: #e0e0f0; font-size: 0.95rem; margin-bottom: 14px; }
+    .login-box button { width: 100%; }
+    @media(max-width:600px){ .admin-sidebar{display:none;} .admin-main{padding:16px;} }
+  </style>
+</head>
+<body>
+
+<!-- Login overlay -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <h2>🔒 Admin Login</h2>
+    <p>Enter your admin secret to continue</p>
+    <input type="password" id="adminSecretInput" placeholder="Admin secret…" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="btn-primary-admin" onclick="doLogin()">Login →</button>
+    <p id="loginError" style="color:#e06070;margin-top:12px;display:none;">Invalid secret</p>
+  </div>
+</div>
+
+<div class="admin-layout" id="adminLayout" style="display:none;">
+  <div class="admin-sidebar">
+    <h2>💕 Crush Bot</h2>
+    <nav class="sidebar-nav">
+      <a href="#" class="active" onclick="showTab('dashboard',this)">📊 Dashboard</a>
+      <a href="#" onclick="showTab('users',this)">👥 Users</a>
+      <a href="#" onclick="showTab('links',this)">🔗 Links</a>
+      <a href="#" onclick="showTab('broadcast',this)">📢 Broadcast</a>
+    </nav>
+  </div>
+
+  <div class="admin-main">
+    <!-- Dashboard -->
+    <div class="tab-pane active" id="tab-dashboard">
+      <div class="admin-header">
+        <h1>Dashboard</h1>
+        <p>Overview of all activity</p>
+      </div>
+      <div class="stats-grid" id="statsGrid">
+        <div class="stat-card"><div class="stat-num" id="stat-users">—</div><div class="stat-label">Total Users</div></div>
+        <div class="stat-card"><div class="stat-num" id="stat-links">—</div><div class="stat-label">Total Links</div></div>
+        <div class="stat-card"><div class="stat-num" id="stat-views">—</div><div class="stat-label">Total Views</div></div>
+        <div class="stat-card"><div class="stat-num" id="stat-yes">—</div><div class="stat-label">Yes Clicks</div></div>
+      </div>
+    </div>
+
+    <!-- Users -->
+    <div class="tab-pane" id="tab-users">
+      <div class="admin-header">
+        <h1>Users</h1>
+        <p>Manage registered users</p>
+      </div>
+      <div class="section-card">
+        <div id="usersTableWrap">Loading…</div>
+      </div>
+    </div>
+
+    <!-- Links -->
+    <div class="tab-pane" id="tab-links">
+      <div class="admin-header">
+        <h1>Links</h1>
+        <p>Manage crush pages</p>
+      </div>
+      <div class="section-card">
+        <div id="linksTableWrap">Loading…</div>
+      </div>
+    </div>
+
+    <!-- Broadcast -->
+    <div class="tab-pane" id="tab-broadcast">
+      <div class="admin-header">
+        <h1>Broadcast</h1>
+        <p>Send a message to all users</p>
+      </div>
+      <div class="section-card">
+        <h3>Message</h3>
+        <div class="input-row"><textarea id="broadcastMsg" placeholder="Enter your broadcast message…"></textarea></div>
+        <button class="btn-primary-admin" onclick="sendBroadcast()">📢 Send to All Users</button>
+        <p id="broadcastResult" style="margin-top:12px;color:#70e090;display:none;"></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const ADMIN_SECRET_FROM_ENV = "{{ admin_secret }}";
+let adminSecret = "";
+
+function doLogin(){
+  const val = document.getElementById("adminSecretInput").value.trim();
+  fetch("/api/admin/stats", { headers: { "x-admin-secret": val } })
+    .then(r => {
+      if(r.ok){
+        adminSecret = val;
+        document.getElementById("loginOverlay").style.display = "none";
+        document.getElementById("adminLayout").style.display = "flex";
+        loadDashboard();
+      } else {
+        document.getElementById("loginError").style.display = "block";
+      }
+    });
+}
+
+function showTab(name, el){
+  document.querySelectorAll(".tab-pane").forEach(p => p.classList.remove("active"));
+  document.querySelectorAll(".sidebar-nav a").forEach(a => a.classList.remove("active"));
+  document.getElementById("tab-"+name).classList.add("active");
+  if(el) el.classList.add("active");
+  if(name === "users") loadUsers();
+  if(name === "links") loadLinks();
+}
+
+function api(path, opts={}){
+  return fetch(path, { headers: { "x-admin-secret": adminSecret, "Content-Type": "application/json" }, ...opts });
+}
+
+function toast(msg){ const t=document.getElementById("toast"); t.textContent=msg; t.classList.add("show"); setTimeout(()=>t.classList.remove("show"),2500); }
+
+function loadDashboard(){
+  api("/api/admin/stats").then(r=>r.json()).then(d=>{
+    document.getElementById("stat-users").textContent = d.users;
+    document.getElementById("stat-links").textContent = d.links;
+    document.getElementById("stat-views").textContent = d.views;
+    document.getElementById("stat-yes").textContent = d.yes_clicks;
+  });
+}
+
+function loadUsers(){
+  const wrap = document.getElementById("usersTableWrap");
+  wrap.innerHTML = "Loading…";
+  api("/api/admin/users").then(r=>r.json()).then(users=>{
+    if(!users.length){ wrap.innerHTML = "<p style='color:#888'>No users yet.</p>"; return; }
+    let html = "<table><thead><tr><th>User ID</th><th>Username</th><th>Name</th><th>Status</th><th>Actions</th></tr></thead><tbody>";
+    for(const u of users){
+      const banned = u.is_banned;
+      html += `<tr>
+        <td><code>${u.user_id}</code></td>
+        <td>${u.username ? '@'+u.username : '—'}</td>
+        <td>${u.full_name || '—'}</td>
+        <td><span class="badge ${banned?'badge-red':'badge-green'}">${banned?'Banned':'Active'}</span></td>
+        <td>
+          ${banned
+            ? `<button class="btn-sm btn-success" onclick="unbanUser(${u.user_id})">Unban</button>`
+            : `<button class="btn-sm btn-danger" onclick="banUser(${u.user_id})">Ban</button>`}
+        </td>
+      </tr>`;
+    }
+    html += "</tbody></table>";
+    wrap.innerHTML = html;
+  });
+}
+
+function banUser(id){
+  if(!confirm("Ban user "+id+"?")) return;
+  api("/api/admin/ban/"+id, {method:"POST"}).then(()=>{ toast("User banned"); loadUsers(); });
+}
+function unbanUser(id){
+  api("/api/admin/unban/"+id, {method:"POST"}).then(()=>{ toast("User unbanned"); loadUsers(); });
+}
+
+function loadLinks(){
+  const wrap = document.getElementById("linksTableWrap");
+  wrap.innerHTML = "Loading…";
+  api("/api/admin/links").then(r=>r.json()).then(links=>{
+    const active = links.filter(l=>!l.is_deleted);
+    if(!active.length){ wrap.innerHTML = "<p style='color:#888'>No links yet.</p>"; return; }
+    let html = "<table><thead><tr><th>ID</th><th>Crush</th><th>Creator</th><th>Views</th><th>Yes</th><th>Actions</th></tr></thead><tbody>";
+    for(const l of active){
+      html += `<tr>
+        <td><code>${l.link_id}</code></td>
+        <td>${l.crush_name}</td>
+        <td>${l.creator_name}</td>
+        <td>${l.views||0}</td>
+        <td>${l.yes_count||0}</td>
+        <td><button class="btn-sm btn-danger" onclick="deleteLink('${l.link_id}')">Delete</button></td>
+      </tr>`;
+    }
+    html += "</tbody></table>";
+    wrap.innerHTML = html;
+  });
+}
+
+function deleteLink(id){
+  if(!confirm("Delete link "+id+"?")) return;
+  api("/api/admin/links/"+id, {method:"DELETE"}).then(()=>{ toast("Link deleted"); loadLinks(); });
+}
+
+function sendBroadcast(){
+  const msg = document.getElementById("broadcastMsg").value.trim();
+  if(!msg){ toast("Enter a message first"); return; }
+  api("/api/admin/broadcast", {method:"POST", body: JSON.stringify({message: msg})})
+    .then(r=>r.json()).then(d=>{
+      const res = document.getElementById("broadcastResult");
+      res.textContent = `✅ Sent to ${d.sent} users (${d.failed} failed)`;
+      res.style.display = "block";
+      toast("Broadcast sent!");
+    });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>💕 A Special Message for {{ link.crush_name }}</title>
+  <meta property="og:title" content="💕 Someone has a message for {{ link.crush_name }}">
+  <meta property="og:description" content="{{ link.message }}">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Dancing+Script:wght@400;700&family=Lato:wght@300;400&display=swap" rel="stylesheet">
+  <style>
+    {% if link.bg_image %}
+    body.proposal-body { background-image: url('{{ link.bg_image }}'); }
+    {% endif %}
+  </style>
+</head>
+<body class="proposal-body">
+  <!-- Paper texture overlay -->
+  <div class="paper-texture"></div>
+  <!-- Floating hearts layer -->
+  <div class="floating-hearts" id="floatingHearts"></div>
+  <!-- Floating emoji layer -->
+  <div class="floating-emojis" id="floatingEmojis" data-emoji="{{ link.emoji or '❤️' }}"></div>
+  <!-- Sunlight rays -->
+  <div class="sunlight-rays"></div>
+
+  {% if link.music_url %}
+  <audio id="bgMusic" loop preload="auto">
+    <source src="{{ link.music_url }}" type="audio/mpeg">
+  </audio>
+  <button class="music-toggle" id="musicToggle" title="Toggle music">🎵</button>
+  {% endif %}
+
+  <!-- Main card -->
+  <div class="proposal-wrapper">
+    <div class="glass-card proposal-card" id="proposalCard">
+      <!-- Envelope header -->
+      <div class="proposal-envelope">
+        <div class="envelope">
+          <div class="envelope-flap"></div>
+          <div class="envelope-heart">❤️</div>
+        </div>
+      </div>
+
+      <!-- To / From -->
+      <div class="proposal-header">
+        <div class="proposal-to">
+          <span class="label-script">To,</span>
+          <h1 class="crush-name" id="crushNameTyped"></h1>
+        </div>
+        <div class="proposal-from">
+          <span class="label-script">From,</span>
+          <p class="creator-name">{{ link.creator_name }}</p>
+        </div>
+      </div>
+
+      <!-- Decorative hearts row -->
+      <div class="heart-row">❤️ 💕 ❤️ 💕 ❤️</div>
+
+      <!-- Message -->
+      <div class="proposal-message-wrap">
+        <p class="proposal-message" id="messageTyped"></p>
+      </div>
+
+      <!-- Yes / No buttons -->
+      <div class="proposal-buttons" id="proposalButtons">
+        <button class="btn-yes" id="btnYes" onclick="handleYes()">❤️ Yes</button>
+        <button class="btn-no"  id="btnNo">💔 No</button>
+      </div>
+    </div>
+
+    <!-- Yes celebration overlay -->
+    <div class="yes-overlay" id="yesOverlay" style="display:none;">
+      <div class="glass-card yes-card">
+        <div class="yes-emoji-big">🎉</div>
+        <h2 class="yes-title">SHE SAID YES! ❤️</h2>
+        <p class="yes-sub">{{ link.creator_name }} is the happiest person alive right now 🥰</p>
+        <div class="yes-detail" id="yesDetail"></div>
+        <img class="yes-image" id="yesImage" src="" alt="Celebration" style="display:none;">
+      </div>
+    </div>
+  </div>
+
+  <!-- Confetti canvas -->
+  <canvas id="confettiCanvas" style="position:fixed;top:0;left:0;pointer-events:none;z-index:9999;width:100%;height:100%;"></canvas>
+
+  <script>
+    const LINK_ID = "{{ link_id }}";
+    const CRUSH_NAME = "{{ link.crush_name }}";
+    const CUSTOM_MESSAGE = {{ link.message | tojson }};
+  </script>
+  <script src="/static/js/hearts.js"></script>
+  <script src="/static/js/proposal.js"></script>
+</body>
+</html>

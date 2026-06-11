@@ -1,0 +1,336 @@
+/* ── Reset & Base ─────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --rose:     #e0607e;
+  --rose-dark:#c0405e;
+  --pink:     #f7b8c8;
+  --cream:    #fff8f0;
+  --parchment:#f5ede0;
+  --warm:     #d4936a;
+  --shadow:   rgba(180, 80, 100, 0.18);
+  --glass-bg: rgba(255, 248, 244, 0.65);
+  --glass-border: rgba(255, 200, 200, 0.4);
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'Lato', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* ── Index body ───────────────────────────────────────────────────────────── */
+body.index-body {
+  background: linear-gradient(135deg, #fde8ef 0%, #fff0f5 40%, #fde0d0 100%);
+}
+
+/* ── Proposal body ────────────────────────────────────────────────────────── */
+body.proposal-body {
+  background:
+    linear-gradient(135deg, rgba(253,232,239,0.92) 0%, rgba(255,240,245,0.9) 50%, rgba(253,224,208,0.92) 100%),
+    var(--parchment);
+  background-attachment: fixed;
+  background-size: cover, auto;
+}
+
+/* ── Paper texture ─────────────────────────────────────────────────────────── */
+.paper-texture {
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  opacity: 0.5;
+}
+
+/* ── Sunlight rays ──────────────────────────────────────────────────────────── */
+.sunlight-rays {
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background: radial-gradient(ellipse at 30% 10%, rgba(255,230,180,0.25) 0%, transparent 60%),
+              radial-gradient(ellipse at 80% 90%, rgba(255,200,200,0.15) 0%, transparent 50%);
+}
+
+/* ── Glass card ───────────────────────────────────────────────────────────── */
+.glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border: 1px solid var(--glass-border);
+  border-radius: 24px;
+  box-shadow:
+    0 8px 40px var(--shadow),
+    inset 0 1px 0 rgba(255,255,255,0.6);
+  position: relative;
+  overflow: hidden;
+}
+.glass-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.8), transparent);
+}
+
+/* ── Floating hearts layer ────────────────────────────────────────────────── */
+.floating-hearts, .floating-emojis {
+  position: fixed; inset: 0; pointer-events: none; z-index: 1; overflow: hidden;
+}
+.heart-particle, .emoji-particle {
+  position: absolute;
+  bottom: -40px;
+  animation: floatUp linear infinite;
+  user-select: none;
+  pointer-events: none;
+}
+@keyframes floatUp {
+  0%   { transform: translateY(0) rotate(0deg) scale(1); opacity: 0.9; }
+  50%  { transform: translateY(-45vh) rotate(15deg) scale(1.1); opacity: 0.7; }
+  100% { transform: translateY(-105vh) rotate(-10deg) scale(0.8); opacity: 0; }
+}
+
+/* ── Envelope ─────────────────────────────────────────────────────────────── */
+.envelope-wrap, .proposal-envelope {
+  display: flex; justify-content: center;
+  margin-bottom: 16px;
+}
+.envelope {
+  width: 90px; height: 60px;
+  background: linear-gradient(160deg, #fff0f0, #ffe0e0);
+  border: 2px solid rgba(220,120,130,0.4);
+  border-radius: 4px 4px 8px 8px;
+  position: relative;
+  box-shadow: 0 4px 16px rgba(200,80,100,0.15);
+  animation: envFloat 3s ease-in-out infinite;
+}
+@keyframes envFloat {
+  0%,100% { transform: translateY(0) rotate(-1deg); }
+  50%     { transform: translateY(-6px) rotate(1deg); }
+}
+.envelope-flap {
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 0;
+  border-left: 45px solid transparent;
+  border-right: 45px solid transparent;
+  border-top: 30px solid rgba(235,160,170,0.5);
+}
+.envelope-heart {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.5rem;
+  padding-top: 12px;
+}
+
+/* ── Index page ───────────────────────────────────────────────────────────── */
+.index-container {
+  position: relative; z-index: 2;
+  min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+}
+.index-card {
+  max-width: 480px; width: 100%;
+  padding: 48px 40px;
+  text-align: center;
+}
+.index-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 2.2rem; font-weight: 700;
+  color: var(--rose-dark);
+  margin-bottom: 10px;
+  letter-spacing: -0.5px;
+}
+.index-sub {
+  color: #9a6070; font-size: 1rem; line-height: 1.6;
+  margin-bottom: 32px;
+}
+.index-steps {
+  text-align: left; margin-bottom: 36px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.step-item {
+  display: flex; align-items: center; gap: 14px;
+}
+.step-num {
+  width: 28px; height: 28px; flex-shrink: 0;
+  background: linear-gradient(135deg, var(--rose), #c050a0);
+  color: white; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.8rem; font-weight: 700;
+}
+.step-text { color: #7a5060; font-size: 0.95rem; }
+
+/* ── Proposal page ────────────────────────────────────────────────────────── */
+.proposal-wrapper {
+  position: relative; z-index: 2;
+  min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+}
+.proposal-card {
+  max-width: 520px; width: 100%;
+  padding: 44px 40px;
+  text-align: center;
+  animation: cardEntrance 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+@keyframes cardEntrance {
+  from { opacity: 0; transform: scale(0.85) translateY(30px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.proposal-header {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  margin-bottom: 20px;
+  text-align: left;
+}
+.label-script {
+  font-family: 'Dancing Script', cursive;
+  font-size: 1.1rem; color: #b07080;
+  display: block; margin-bottom: 2px;
+}
+.crush-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 2rem; font-weight: 700;
+  color: var(--rose-dark);
+  min-height: 2.4rem;
+  letter-spacing: -0.5px;
+}
+.creator-name {
+  font-family: 'Dancing Script', cursive;
+  font-size: 1.4rem; color: #b07080;
+  margin-top: 4px;
+}
+.proposal-from { text-align: right; }
+
+.heart-row {
+  font-size: 1rem; letter-spacing: 6px;
+  margin: 12px 0 20px;
+  animation: heartPulse 2s ease-in-out infinite;
+}
+@keyframes heartPulse {
+  0%,100% { transform: scale(1); }
+  50%     { transform: scale(1.08); }
+}
+
+.proposal-message-wrap {
+  background: rgba(255,230,230,0.4);
+  border: 1px solid rgba(220,160,170,0.35);
+  border-radius: 16px;
+  padding: 20px 24px;
+  margin-bottom: 32px;
+}
+.proposal-message {
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  font-size: 1.05rem;
+  color: #7a4060;
+  line-height: 1.7;
+  min-height: 2.4rem;
+}
+
+/* ── Yes / No Buttons ────────────────────────────────────────────────────────── */
+.proposal-buttons {
+  display: flex; gap: 16px; justify-content: center;
+  flex-wrap: wrap;
+  position: relative;
+}
+.btn-yes {
+  font-family: 'Lato', sans-serif;
+  font-size: 1.1rem; font-weight: 700;
+  padding: 14px 36px;
+  background: linear-gradient(135deg, #e0607e, #c040a0);
+  color: white; border: none; border-radius: 50px;
+  cursor: pointer;
+  box-shadow: 0 6px 24px rgba(200,50,100,0.35);
+  transition: transform 0.15s, box-shadow 0.15s;
+  position: relative; z-index: 1;
+}
+.btn-yes:hover { transform: scale(1.06); box-shadow: 0 8px 32px rgba(200,50,100,0.5); }
+.btn-yes:active { transform: scale(0.98); }
+
+.btn-no {
+  font-family: 'Lato', sans-serif;
+  font-size: 1rem; font-weight: 500;
+  padding: 14px 30px;
+  background: rgba(255,255,255,0.6);
+  color: #b07080;
+  border: 1.5px solid rgba(200,140,160,0.5);
+  border-radius: 50px;
+  cursor: pointer;
+  transition: transform 0.15s;
+  position: fixed;
+  z-index: 9998;
+  white-space: nowrap;
+}
+.btn-no:hover { background: rgba(255,240,240,0.8); }
+
+/* ── Yes overlay ─────────────────────────────────────────────────────────── */
+.yes-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255,220,230,0.5);
+  backdrop-filter: blur(8px);
+  padding: 24px;
+  animation: fadeIn 0.5s ease;
+}
+@keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+
+.yes-card {
+  max-width: 440px; width: 100%;
+  padding: 48px 36px;
+  text-align: center;
+  animation: cardEntrance 0.7s cubic-bezier(0.34,1.56,0.64,1) forwards;
+}
+.yes-emoji-big { font-size: 3.5rem; margin-bottom: 16px; animation: bounce 0.6s ease infinite alternate; }
+@keyframes bounce { from { transform: scale(1); } to { transform: scale(1.2); } }
+
+.yes-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 2rem; font-weight: 700;
+  color: var(--rose-dark);
+  margin-bottom: 12px;
+}
+.yes-sub { color: #9a6070; font-size: 1rem; line-height: 1.6; margin-bottom: 16px; }
+.yes-detail { color: #b07080; font-size: 0.9rem; margin-bottom: 16px; }
+
+.yes-image {
+  max-width: 100%; border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(200,80,100,0.25);
+  margin-top: 16px;
+}
+
+/* ── Shared button ───────────────────────────────────────────────────────── */
+.btn-primary {
+  display: inline-block;
+  font-family: 'Lato', sans-serif;
+  font-size: 1rem; font-weight: 700;
+  padding: 14px 32px;
+  background: linear-gradient(135deg, var(--rose), #c040a0);
+  color: white; text-decoration: none;
+  border-radius: 50px;
+  box-shadow: 0 6px 24px rgba(200,50,100,0.35);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.btn-primary:hover { transform: scale(1.04); box-shadow: 0 8px 32px rgba(200,50,100,0.5); }
+
+/* ── Music toggle ────────────────────────────────────────────────────────── */
+.music-toggle {
+  position: fixed; bottom: 20px; right: 20px; z-index: 500;
+  background: var(--glass-bg); border: 1px solid var(--glass-border);
+  backdrop-filter: blur(10px);
+  width: 44px; height: 44px; border-radius: 50%;
+  font-size: 1.2rem; cursor: pointer;
+  box-shadow: 0 4px 16px var(--shadow);
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 0.2s;
+}
+.music-toggle:hover { transform: scale(1.1); }
+.music-toggle.muted { opacity: 0.5; }
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+@media (max-width: 520px) {
+  .index-card, .proposal-card { padding: 32px 24px; }
+  .index-title { font-size: 1.7rem; }
+  .crush-name  { font-size: 1.6rem; }
+  .yes-title   { font-size: 1.5rem; }
+  .proposal-header { flex-direction: column; gap: 10px; }
+  .proposal-from { text-align: left; }
+}
